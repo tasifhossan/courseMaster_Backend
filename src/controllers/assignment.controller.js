@@ -5,7 +5,8 @@ const submitAssignment = async (req, res) => {
     const data = await assignmentService.submitAssignment(req.user.id, req.body);
     res.status(201).json(data);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    const statusCode = err.statusCode || 400;
+    res.status(statusCode).json({ message: err.message });
   }
 };
 
