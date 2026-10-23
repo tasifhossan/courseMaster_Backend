@@ -9,6 +9,9 @@ const enrollCourse = async (req, res) => {
     );
     res.status(201).json(enrollment);
   } catch (err) {
+    if (err.message === "Course not found") {
+      return res.status(404).json({ message: err.message });
+    }
     res.status(400).json({ message: err.message });
   }
 };
@@ -25,11 +28,18 @@ const myEnrollments = async (req, res) => {
 const completeLesson = async (req, res) => {
   try {
     const data = await enrollmentService.completeLesson(
+      req.user.id,
       req.params.enrollId,
       req.body.lessonId
     );
     res.json(data);
   } catch (err) {
+    if (err.message === "Not authorized to modify this enrollment") {
+      return res.status(403).json({ message: err.message });
+    }
+    if (err.message === "Enrollment not found") {
+      return res.status(404).json({ message: err.message });
+    }
     res.status(400).json({ message: err.message });
   }
 };
