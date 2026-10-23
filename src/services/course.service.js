@@ -1,7 +1,6 @@
-// service to handle course-related operations
-
 const mongoose = require("mongoose");
 const Course = require("../models/Course");
+const Enrollment = require("../models/Enrollment");
 
 const getCourses = async (query) => {
   const {
@@ -60,13 +59,41 @@ const getCourses = async (query) => {
   };
 };
 
-const getCourseById = async (id) => {
+const getCourseById = async (id, user = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid course ID");
   }
   const course = await Course.findById(id);
   if (!course) throw new Error("Course not found");
-  return course;
+
+  let canAccessPrivateContent = false;
+  if (user) {
+    if (user.role === "admin") {
+      canAccessPrivateContent = true;
+    } else {
+      const isEnrolled = await Enrollment.exists({
+        student: user.id,
+        course: course._id,
+      });
+      if (isEnrolled) {
+        canAccessPrivateContent = true;
+      }
+    }
+  }
+
+  const courseObj = course.toObject();
+
+  if (!canAccessPrivateContent && courseObj.syllabus) {
+    courseObj.syllabus = courseObj.syllabus.map((mod) => ({
+      ...mod,
+      lessons: mod.lessons?.map((lesson) => {
+        const { videoUrl, liveClassLink, ...publicLesson } = lesson;
+        return publicLesson;
+      }),
+    }));
+  }
+
+  return courseObj;
 };
 
 module.exports = { getCourses, getCourseById };

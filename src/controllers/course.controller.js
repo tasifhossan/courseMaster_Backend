@@ -1,5 +1,4 @@
-// controller for course-related routes
-
+const jwt = require("jsonwebtoken");
 const courseService = require("../services/course.service");
 const connectDB = require("../config/db");
 
@@ -17,7 +16,18 @@ const getCourses = async (req, res) => {
 
 const getCourseById = async (req, res) => {
   try {
-    const course = await courseService.getCourseById(req.params.id);
+    let user = null;
+    const header = req.headers.authorization;
+    if (header) {
+      const token = header.startsWith("Bearer ") ? header.split(" ")[1] : header;
+      try {
+        user = jwt.verify(token, process.env.JWT_SECRET);
+      } catch {
+        // ignore invalid token on public endpoint
+      }
+    }
+
+    const course = await courseService.getCourseById(req.params.id, user);
     res.json(course);
   } catch (err) {
     if (err.message === "Invalid course ID") {
