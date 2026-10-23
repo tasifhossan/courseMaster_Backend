@@ -65,6 +65,21 @@ const completeLesson = async (studentId, enrollId, lessonId) => {
     throw new Error("Not authorized to modify this enrollment");
   }
 
+  if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
+    throw new Error("Lesson does not belong to this course");
+  }
+
+  const course = await Course.findById(enrollment.course);
+  if (!course) throw new Error("Course not found");
+
+  const lessonExists = course.syllabus?.some((mod) =>
+    mod.lessons?.some((l) => l._id.toString() === lessonId.toString())
+  );
+
+  if (!lessonExists) {
+    throw new Error("Lesson does not belong to this course");
+  }
+
   // avoid duplicates
   const alreadyDone = enrollment.progress.completedLessons
     .map(String)
@@ -75,17 +90,15 @@ const completeLesson = async (studentId, enrollId, lessonId) => {
   }
 
   // calculate percent
-  const course = await Course.findById(enrollment.course);
-  const totalLessons = course?.syllabus
-    ? course.syllabus.reduce((sum, mod) => sum + mod.lessons.length, 0)
+  const totalLessons = course.syllabus
+    ? course.syllabus.reduce((sum, mod) => sum + (mod.lessons?.length || 0), 0)
     : 0;
 
   const completed = enrollment.progress.completedLessons.length;
   enrollment.progress.percent =
     totalLessons === 0 ? 0 : Math.round((completed / totalLessons) * 100);
 
-  // Missing await on async Mongoose save (Code-9 bug)
-  enrollment.save();
+  await enrollment.save();
   return enrollment;
 };
 
