@@ -45,6 +45,7 @@ const getCourses = async (query) => {
 
   const [courses, total] = await Promise.all([
     Course.find(filter)
+      .select("-syllabus.lessons.videoUrl -syllabus.lessons.liveClassLink -syllabus.lessons.quiz.correctIndex")
       .sort(sortObj)
       .skip(skip)
       .limit(limitNum),
@@ -87,7 +88,13 @@ const getCourseById = async (id, user = null) => {
     courseObj.syllabus = courseObj.syllabus.map((mod) => ({
       ...mod,
       lessons: mod.lessons?.map((lesson) => {
-        const { videoUrl, liveClassLink, ...publicLesson } = lesson;
+        const { videoUrl, liveClassLink, quiz, ...publicLesson } = lesson;
+        if (quiz && Array.isArray(quiz)) {
+          publicLesson.quiz = quiz.map((q) => {
+            const { correctIndex, ...publicQuiz } = q;
+            return publicQuiz;
+          });
+        }
         return publicLesson;
       }),
     }));
