@@ -1,5 +1,6 @@
 // service to handle admin-related operations
 
+const mongoose = require("mongoose");
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
 const AssignmentSubmission = require("../models/AssignmentSubmission");
@@ -23,12 +24,23 @@ const deleteCourse = async (id) => {
 };
 
 // ✅ NEW: get enrollments (with optional filters)
-const getEnrollments = async (query) => {
-  const { courseId, batchId } = query;
+const getEnrollments = async (query = {}) => {
+  const { courseId, course, batchId } = query;
 
   const filter = {};
-  if (courseId) filter.course = courseId;
-  if (batchId) filter.batchId = batchId;
+  const targetCourse = course || courseId;
+  if (targetCourse) {
+    if (!mongoose.Types.ObjectId.isValid(targetCourse)) {
+      throw new Error("Invalid course ID");
+    }
+    filter.course = targetCourse;
+  }
+  if (batchId) {
+    if (!mongoose.Types.ObjectId.isValid(batchId)) {
+      throw new Error("Invalid batch ID");
+    }
+    filter.batchId = batchId;
+  }
 
   return Enrollment.find(filter)
     .populate("student", "name email")
@@ -36,10 +48,30 @@ const getEnrollments = async (query) => {
     .sort({ createdAt: -1 });
 };
 
-// ✅ NEW: get all assignment submissions (Code-8 bug: queries by courseId instead of course)
+// ✅ NEW: get all assignment submissions (with optional filters)
 const getAssignments = async (query = {}) => {
+  const { course, courseId, student, studentId, status } = query;
   const filter = {};
-  if (query.courseId) filter.courseId = query.courseId; // Mongoose schema has 'course', not 'courseId'
+
+  const targetCourse = course || courseId;
+  if (targetCourse) {
+    if (!mongoose.Types.ObjectId.isValid(targetCourse)) {
+      throw new Error("Invalid course ID");
+    }
+    filter.course = targetCourse;
+  }
+
+  const targetStudent = student || studentId;
+  if (targetStudent) {
+    if (!mongoose.Types.ObjectId.isValid(targetStudent)) {
+      throw new Error("Invalid student ID");
+    }
+    filter.student = targetStudent;
+  }
+
+  if (status) {
+    filter.status = status;
+  }
 
   const submissions = await AssignmentSubmission.find(filter)
     .populate("student", "name email")
@@ -74,12 +106,25 @@ const getAssignments = async (query = {}) => {
 
 // review/update an assignment submission (admin)
 const reviewAssignment = async (id, payload, adminId) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid submission ID");
+  }
+
   const { reviewNotes, grade, status } = payload;
 
   const update = {};
   if (typeof status !== "undefined") update.status = status;
   if (typeof reviewNotes !== "undefined") update.reviewNotes = reviewNotes;
-  if (typeof grade !== "undefined") update.grade = grade;
+  if (typeof grade !== "undefined") {
+    if (grade === null || grade === "" || typeof grade === "boolean") {
+      throw new Error("Grade must be a number between 0 and 100");
+    }
+    const numericGrade = Number(grade);
+    if (Number.isNaN(numericGrade) || numericGrade < 0 || numericGrade > 100) {
+      throw new Error("Grade must be a number between 0 and 100");
+    }
+    update.grade = numericGrade;
+  }
   if (adminId) update.reviewer = adminId;
 
   const submission = await AssignmentSubmission.findByIdAndUpdate(id, update, { new: true })

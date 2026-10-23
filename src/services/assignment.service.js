@@ -1,12 +1,60 @@
+const mongoose = require("mongoose");
+const Course = require("../models/Course");
 const AssignmentSubmission = require("../models/AssignmentSubmission");
 const Enrollment = require("../models/Enrollment");
 
 const submitAssignment = async (studentId, payload) => {
   const { courseId, lessonId, answerType, answer } = payload;
 
+  if (!courseId || !mongoose.Types.ObjectId.isValid(courseId)) {
+    const error = new Error("Course not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const course = await Course.findById(courseId);
+  if (!course) {
+    const error = new Error("Course not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
   // ensure student enrolled
   const enrolled = await Enrollment.findOne({ student: studentId, course: courseId });
-  if (!enrolled) throw new Error("You are not enrolled in this course");
+  if (!enrolled) {
+    const error = new Error("You are not enrolled in this course");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
+    const error = new Error("Lesson not found in this course");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  let foundLesson = null;
+  if (course.syllabus) {
+    for (const mod of course.syllabus) {
+      const l = mod.lessons?.id ? mod.lessons.id(lessonId) : mod.lessons?.find((x) => String(x._id) === String(lessonId));
+      if (l) {
+        foundLesson = l;
+        break;
+      }
+    }
+  }
+
+  if (!foundLesson) {
+    const error = new Error("Lesson not found in this course");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!foundLesson.assignmentPrompt || !foundLesson.assignmentPrompt.trim()) {
+    const error = new Error("Lesson is not an assignment lesson");
+    error.statusCode = 400;
+    throw error;
+  }
 
   const submission = await AssignmentSubmission.create({
     student: studentId,
