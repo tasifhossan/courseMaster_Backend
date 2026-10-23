@@ -53,9 +53,17 @@ const getMyEnrollments = async (studentId) => {
     .sort({ createdAt: -1 });
 };
 
-const completeLesson = async (enrollId, lessonId) => {
+const completeLesson = async (studentId, enrollId, lessonId) => {
+  if (!mongoose.Types.ObjectId.isValid(enrollId)) {
+    throw new Error("Enrollment not found");
+  }
+
   const enrollment = await Enrollment.findById(enrollId);
   if (!enrollment) throw new Error("Enrollment not found");
+
+  if (enrollment.student.toString() !== studentId.toString()) {
+    throw new Error("Not authorized to modify this enrollment");
+  }
 
   // avoid duplicates
   const alreadyDone = enrollment.progress.completedLessons
@@ -68,10 +76,9 @@ const completeLesson = async (enrollId, lessonId) => {
 
   // calculate percent
   const course = await Course.findById(enrollment.course);
-  const totalLessons = course.syllabus.reduce(
-    (sum, mod) => sum + mod.lessons.length,
-    0
-  );
+  const totalLessons = course?.syllabus
+    ? course.syllabus.reduce((sum, mod) => sum + mod.lessons.length, 0)
+    : 0;
 
   const completed = enrollment.progress.completedLessons.length;
   enrollment.progress.percent =
