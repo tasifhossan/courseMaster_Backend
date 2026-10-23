@@ -1,5 +1,6 @@
 // service to handle admin-related operations
 
+const mongoose = require("mongoose");
 const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
 const AssignmentSubmission = require("../models/AssignmentSubmission");
@@ -74,12 +75,25 @@ const getAssignments = async (query = {}) => {
 
 // review/update an assignment submission (admin)
 const reviewAssignment = async (id, payload, adminId) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid submission ID");
+  }
+
   const { reviewNotes, grade, status } = payload;
 
   const update = {};
   if (typeof status !== "undefined") update.status = status;
   if (typeof reviewNotes !== "undefined") update.reviewNotes = reviewNotes;
-  if (typeof grade !== "undefined") update.grade = grade;
+  if (typeof grade !== "undefined") {
+    if (grade === null || grade === "" || typeof grade === "boolean") {
+      throw new Error("Grade must be a number between 0 and 100");
+    }
+    const numericGrade = Number(grade);
+    if (Number.isNaN(numericGrade) || numericGrade < 0 || numericGrade > 100) {
+      throw new Error("Grade must be a number between 0 and 100");
+    }
+    update.grade = numericGrade;
+  }
   if (adminId) update.reviewer = adminId;
 
   const submission = await AssignmentSubmission.findByIdAndUpdate(id, update, { new: true })
