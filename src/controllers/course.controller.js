@@ -20,7 +20,13 @@ const getCourseById = async (req, res) => {
     const course = await courseService.getCourseById(req.params.id);
     res.json(course);
   } catch (err) {
-    res.status(404).json({ message: err.message });
+    if (err.message === "Invalid course ID") {
+      return res.status(400).json({ message: err.message });
+    }
+    if (err.message === "Course not found") {
+      return res.status(404).json({ message: err.message });
+    }
+    res.status(400).json({ message: err.message });
   }
 };
 

@@ -1,5 +1,6 @@
 // service to handle course-related operations
 
+const mongoose = require("mongoose");
 const Course = require("../models/Course");
 
 const getCourses = async (query) => {
@@ -60,6 +61,9 @@ const getCourses = async (query) => {
 };
 
 const getCourseById = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid course ID");
+  }
   const course = await Course.findById(id);
   if (!course) throw new Error("Course not found");
   return course;
