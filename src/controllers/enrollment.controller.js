@@ -9,6 +9,9 @@ const enrollCourse = async (req, res) => {
     );
     res.status(201).json(enrollment);
   } catch (err) {
+    if (err.message === "Course not found") {
+      return res.status(404).json({ message: err.message });
+    }
     res.status(400).json({ message: err.message });
   }
 };

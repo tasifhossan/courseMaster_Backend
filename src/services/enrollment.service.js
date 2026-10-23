@@ -1,30 +1,50 @@
+const mongoose = require("mongoose");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 
 const enrollCourse = async (studentId, courseId, batchId = null) => {
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    throw new Error("Course not found");
+  }
+
   const course = await Course.findById(courseId);
   if (!course) throw new Error("Course not found");
 
+  if (batchId) {
+    if (
+      !mongoose.Types.ObjectId.isValid(batchId) ||
+      !course.batches?.some((b) => b._id.toString() === batchId.toString())
+    ) {
+      throw new Error("Invalid batch selected for this course");
+    }
+  }
+
   // Check if already enrolled
-  let enrollment = await Enrollment.findOne({
+  const existingEnrollment = await Enrollment.findOne({
     student: studentId,
     course: courseId,
   });
 
-  if (!enrollment) {
-    // Inverted logic bug: throws error when NOT enrolled
+  if (existingEnrollment) {
     throw new Error("Already enrolled in this course");
   }
 
   // Create new enrollment
-  enrollment = await Enrollment.create({
-    student: studentId,
-    course: courseId,
-    batchId,
-    progress: { completedLessons: [], percent: 0 },
-  });
+  try {
+    const enrollment = await Enrollment.create({
+      student: studentId,
+      course: courseId,
+      batchId: batchId || null,
+      progress: { completedLessons: [], percent: 0 },
+    });
 
-  return enrollment;
+    return enrollment;
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new Error("Already enrolled in this course");
+    }
+    throw err;
+  }
 };
 
 const getMyEnrollments = async (studentId) => {

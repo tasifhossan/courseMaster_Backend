@@ -1,0 +1,57 @@
+=== BUG-017 AFTER EVIDENCE ===
+Endpoint: POST /api/enrollments/:courseId
+Tested at: 2026-10-23T06:44:21Z
+
+1. New Student Enrollment (Sumaiya enrolling into Course 3 with valid batchId):
+Request:
+POST /api/enrollments/6ada584038fa43bff0a3bc5b
+Headers:
+  Authorization: Bearer <REDACTED_SUMAIYA_TOKEN>
+  Content-Type: application/json
+Body:
+  {"batchId":"6ada584038fa43bff0a3bc5f"}
+
+Response:
+HTTP/1.1 201 Created
+{
+  "_id": "6adb024567f401daf961f62c",
+  "student": "6ada583f38fa43bff0a3bc45",
+  "course": "6ada584038fa43bff0a3bc5b",
+  "batchId": "6ada584038fa43bff0a3bc5f",
+  "progress": {
+    "completedLessons": [],
+    "percent": 0
+  },
+  "createdAt": "2026-10-23T06:44:21.780Z",
+  "updatedAt": "2026-10-23T06:44:21.780Z",
+  "__v": 0
+}
+
+2. Duplicate Enrollment Handling (Student enrolling into already-enrolled Course 1):
+Request:
+POST /api/enrollments/6ada584038fa43bff0a3bc47
+Headers:
+  Authorization: Bearer <REDACTED_STUDENT_TOKEN>
+  Content-Type: application/json
+Body:
+  {"batchId":"6ada584038fa43bff0a3bc51"}
+
+Response:
+HTTP/1.1 400 Bad Request
+{
+  "message": "Already enrolled in this course"
+}
+
+3. Non-existent Course ID:
+Request:
+POST /api/enrollments/000000000000000000000000
+Headers:
+  Authorization: Bearer <REDACTED_STUDENT_TOKEN>
+
+Response:
+HTTP/1.1 404 Not Found
+{
+  "message": "Course not found"
+}
+
+Result: Passed & Verified.
