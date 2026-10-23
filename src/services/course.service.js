@@ -19,9 +19,10 @@ const getCourses = async (query) => {
   const filter = {};
 
   if (search && typeof search === "string") {
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = [
-      { title: { $regex: search, $options: "i" } },
-      { instructorName: { $regex: search, $options: "i" } },
+      { title: { $regex: escapedSearch, $options: "i" } },
+      { instructorName: { $regex: escapedSearch, $options: "i" } },
     ];
   }
 
